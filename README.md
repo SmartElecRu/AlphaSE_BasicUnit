@@ -1,5 +1,7 @@
 # AlphaSE_BasicUnit
 
+  Library for writing firmware of modules of system extension module AlphaSE. The included example does not have any functionality, but can already be polled by the controller using the ADNet + and ModBus RTU protocols. You can use this sketch as a basis for developing new modules.
+  
   Библиотека для написания прошивок модулей модуля расширения системы AlphaSE.
   Входящий в комплект пример не имеет никакого функционала, но уже может опрашиваться контроллером по протоколам
   ADNet+ и ModBus RTU. Данный скетч можно использовать в качестве основы для разработки новых модулей.
@@ -18,5 +20,5 @@
   13 - Led индикации работы. Мигает 1 раз в секунду, если всё хорошо, иначе - ошибка
 
   Подробнее о системе AlphaSE можно узнать на сайте smart-elec.ru
-  Автор: Быков Виктор Сергеевич
-  Дата 02.10.2018г.
+  Author: Viktor S. Bykov
+  Date: 02.10.2018г.
