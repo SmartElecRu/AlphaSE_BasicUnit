@@ -41,9 +41,9 @@ void setup() {
   // put your setup code here, to run once:
   unit.start();
 
-  unit.unit_ver=1; //Версия модуля
-  unit.unit_type=1; // Тип модуля
-  unit.unit_subtype=0; // Подтип модуля
+  unit.unit_ver[0]=1; //Версия модуля
+  unit.unit_type[0]=1; // Тип модуля
+  unit.unit_subtype[0]=0; // Подтип модуля
   /*
    Type/Subtype - Name
     1/0 - SE Light
