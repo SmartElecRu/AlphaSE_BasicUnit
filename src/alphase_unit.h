@@ -8,84 +8,87 @@
  
 #include "Arduino.h"
 #include <EEPROM.h> 
-#define buff_size 37 // Р Р°Р·РјРµСЂ Р±СѓС„РµСЂР° РїСЂРёС‘РјРѕ-РїРµСЂРµРґР°С‡Рё (РњР°РєСЃРёРјР°Р»СЊРЅР°СЏ РґР»РёРЅР° РѕС‚РїСЂР°РІР»СЏРµРјРѕРіРѕ СЃРѕРѕРѕР±С‰РµРЅРёСЏ ModBus 16 СЂРµРіРёСЃС‚СЂРѕРІ=37 Р±Р°Р№С‚)
-#define unit_params_count 256 // Р Р°Р·РјРµСЂРЅРѕСЃС‚СЊ РјР°СЃСЃРёРІР° eeprom
-#define click_cycles 300 // РљРѕР»РёС‡РµСЃС‚РІРѕ С†РёРєР»РѕРІ РїРѕСЃР»Рµ РєРѕС‚РѕСЂС‹С… РєРЅРѕРїРєР° СЃС‡РёС‚Р°РµС‚СЃСЏ РЅР°Р¶Р°С‚РѕР№
+#define buff_size 37 // Размер буфера приёмо-передачи (Максимальная длина отправляемого соообщения ModBus 16 регистров=37 байт)
+#define unit_params_count 256 // Размерность массива eeprom
+#define click_cycles 300 // Количество циклов после которых кнопка считается нажатой
+#define virtual_devices_max_count 16 // Максимальное количество вируальных устройств
 
 class alphase_unit
 {
   public:
-		unsigned char serial_active; // Р¤Р»Р°Рі РґР»СЏ РІРєР»СЋС‡РµРЅРёСЏ РѕР±СЂР°Р±РѕС‚РєРё СЃРѕРѕР±С‰РµРЅРёР№ РїРѕ RS-485
-		unsigned char RS485out_pin; // РџРѕСЂС‚ СѓРїСЂР°РІР»РµРЅРёСЏ РїСЂРёРµРј/РїРµСЂРµРґР°С‡Р° RS485
-		unsigned char ledWork_pin;  // РЎРІРµС‚РѕРґРёРѕРґ РёРЅРґРёРєР°С†РёРё
-		unsigned char jmp_pin[8];  // Р”Р¶Р°РјРїРµСЂ 0-7. РџРёРЅС‹ СѓС‡РёС‚С‹РІР°СЋС‚СЃСЏ, РµСЃР»Рё Р·РЅР°С‡РµРЅРёРµ РїРѕСЂС‚Р° РЅРµ СЂР°РІРЅРѕ 0
-		//unsigned char jmp1_pin;  // Р”Р¶Р°РјРїРµСЂ 1
-		//unsigned char jmp2_pin;  // Р”Р¶Р°РјРїРµСЂ 2
-		//unsigned char jmp3_pin;  // Р”Р¶Р°РјРїРµСЂ 3
-		//unsigned char jmp4_pin;  // Р”Р¶Р°РјРїРµСЂ 4
-		//unsigned char jmp5_pin;  // Р”Р¶Р°РјРїРµСЂ 5
-		//unsigned char jmp6_pin;  // Р”Р¶Р°РјРїРµСЂ 6 РґР°РЅРЅС‹Р№ pin РґР¶Р°РјРїРµСЂР° РЅРµ СЏРІР»СЏРµС‚СЃСЏ РѕР±СЏР·Р°С‚РµР»СЊРЅС‹Рј Рё РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ, РµСЃР»Рё !==0
-		//unsigned char jmp7_pin;  // Р”Р¶Р°РјРїРµСЂ 7 РґР°РЅРЅС‹Р№ pin РґР¶Р°РјРїРµСЂР° РЅРµ СЏРІР»СЏРµС‚СЃСЏ РѕР±СЏР·Р°С‚РµР»СЊРЅС‹Рј Рё РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ, РµСЃР»Рё !==0
+		unsigned char serial_active; // Флаг для включения обработки сообщений по RS-485
+		unsigned char RS485out_pin; // Порт управления прием/передача RS485
+		unsigned char ledWork_pin;  // Светодиод индикации
+		unsigned char jmp_pin[8];  // Джампер 0-7. Пины учитываются, если значение порта не равно 0
+		//unsigned char jmp1_pin;  // Джампер 1
+		//unsigned char jmp2_pin;  // Джампер 2
+		//unsigned char jmp3_pin;  // Джампер 3
+		//unsigned char jmp4_pin;  // Джампер 4
+		//unsigned char jmp5_pin;  // Джампер 5
+		//unsigned char jmp6_pin;  // Джампер 6 данный pin джампера не является обязательным и используется, если !==0
+		//unsigned char jmp7_pin;  // Джампер 7 данный pin джампера не является обязательным и используется, если !==0
 
-		unsigned char addr; // РђРґСЂРµСЃ РјРѕРґСѓР»СЏ РІ С€РёРЅРµ
-		unsigned char unit_type; //РўРёРї РјРѕРґСѓР»СЏ
-		unsigned char unit_subtype; //РџРѕРґС‚РёРї РјРѕРґСѓР»СЏ (РїСЂРё РЅР°Р»РёС‡РёРё РјРѕРґРёС„РёРєР°С†РёР№ РѕРґРЅРѕРіРѕ РјРѕРґСѓР»СЏ РІ СЂР°Р·РЅС‹С… РёСЃРїРѕР»РЅРµРЅРёСЏС…)
-		unsigned char unit_ver; //Р’РµСЂСЃРёСЏ РјРѕРґСѓР»СЏ
-		unsigned char answer_delay; // Р—Р°РґРµСЂР¶РєР° РїРµСЂРµРґ РѕС‚РІРµС‚РѕРј РїРѕСЃР»Рµ РїСЂРёС‘РјР° РєРѕРјР°РЅРґС‹
-		// РњР°СЃСЃРёРІ РґР»СЏ Р·Р°РіСЂСѓР·РєРё
+		unsigned char addr; // Адрес модуля в шине
+		unsigned char virtual_devices_count; // Количество дополнительных вируальных устройств с адресами addr+1, addr+2 и т.д.
+		unsigned char virtual_device_num; // Номер виртуального модуля к которому сейчас пришёл запрос. Занчение вычисляется автоматически при поступлениее запроса к модулю и имеет значение от 0 до virtual_devices_count включительно.
+		unsigned char unit_type[virtual_devices_max_count+1]; //Тип модуля
+		unsigned char unit_subtype[virtual_devices_max_count+1]; //Подтип модуля (при наличии модификаций одного модуля в разных исполнениях)
+		unsigned char unit_ver[virtual_devices_max_count+1]; //Версия модуля
+		unsigned char answer_delay; // Задержка перед ответом после приёма команды
+		// Массив для загрузки
 		unsigned char ee_params_init[unit_params_count];
-		unsigned char read_only_params[unit_params_count]; // РµСЃР»Рё РІ РјР°СЃСЃРёРІРµ 1, СЌС‚РѕС‚ РїР°СЂР°РјРµС‚СЂ С‚РѕР»СЊРєРѕ РґР»СЏ С‡С‚РµРЅРёСЏ
+		unsigned char read_only_params[unit_params_count]; // если в массиве 1, этот параметр только для чтения
 
-		bool on_timer_1s; //РѕРґРёРЅ СЂР°Р· РІ С‚РµРєСѓРЅРґСѓ СЃС‚Р°РЅРѕРІРёС‚СЃСЏ true, РѕСЃС‚Р°Р»СЊРЅРѕРµ РІСЂРµРјСЏ false
+		bool on_timer_1s; //один раз в текунду становится true, остальное время false
 		
-		unsigned char last_cmd_protocol; // РџСЂРѕС‚РѕРєРѕР» РЅР° РєРѕС‚РѕСЂРѕРј РїСЂРёС€Р»Р° РїРѕСЃР»РµРґРЅСЏСЏ РєРѕРјР°РЅРґР° 0 - РєРѕРјР°РЅРґ РЅРµ Р±С‹Р»Рѕ, 1 - AdNet, 2 - ModBus		
-		unsigned char cmd_func_id; //РєРѕРґ РїРѕСЃС‚СѓРїРёРІС€РµР№ РєРѕРјР°РЅРґС‹
-		unsigned char cmd_param[6]; //РїР°СЂР°РјРµС‚СЂС‹ РїСЂРёС€РµРґС€РёРµ РІРѕ РІС…РѕРґСЏС‰РµР№ РєРѕРјР°РЅРґРµ ADNet РёР»Рё ModBus
-		unsigned char output_data[16]; //РґР°РЅРЅС‹Рµ, РѕС‚РїСЂР°РІР»СЏРµРјС‹Рµ РІ РѕС‚РІРµС‚ Р·Р° РІС…РѕРґСЏС‰СѓСЋ РєРѕРјР°РЅРґСѓ ADNet РёР»Рё ModBus
+		unsigned char last_cmd_protocol; // Протокол на котором пришла последняя команда 0 - команд не было, 1 - AdNet, 2 - ModBus		
+		unsigned char cmd_func_id; //код поступившей команды
+		unsigned char cmd_param[6]; //параметры пришедшие во входящей команде ADNet или ModBus
+		unsigned char output_data[16]; //данные, отправляемые в ответ за входящую команду ADNet или ModBus
 		
-		alphase_unit(); // РќР°С‡Р°Р»СЊРЅРѕРµ Р·Р°РґРµРЅРёРµ РІСЃРµС… РїРµСЂРµРјРµРЅРЅС‹С…
-		void start(); // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РїРёРЅРѕРІ СЃРѕРіР»Р°СЃРЅРѕ РЅР°С‡Р°Р»СЊРЅРѕ Р·Р°РґР°РЅРЅС‹Рј РїРµСЂРµРјРµРЅРЅС‹Рј
-		void loop(); //Р¤СѓРЅРєС†РёСЏ, РєРѕС‚РѕСЂР°СЏ РґРѕР»Р¶РЅР° РІС‹РїРѕР»РЅСЏС‚СЊСЃСЏ РІ loop() РѕСЃРЅРѕРІРЅРѕР№ РїСЂРѕРіСЂР°РјРјС‹
+		alphase_unit(); // Начальное задение всех переменных
+		void start(); // Инициализация пинов согласно начально заданным переменным
+		void loop(); //Функция, которая должна выполняться в loop() основной программы
 
-		void SendAnswer_ADNet(); // РѕС‚РїСЂР°РІР»СЏРµС‚ РѕС‚РІРµС‚ РїРѕ РїСЂРѕС‚РѕРєРѕР»Сѓ ADNet
-		void SendAnswer_ModBus(); // РѕС‚РїСЂР°РІР»СЏРµС‚ РѕС‚РІРµС‚ РїРѕ РїСЂРѕС‚РѕРєРѕР»Сѓ ModBus
+		void SendAnswer_ADNet(); // отправляет ответ по протоколу ADNet
+		void SendAnswer_ModBus(); // отправляет ответ по протоколу ModBus
 
-		// Р¤СѓРЅРєС†РёРё СЂР°Р±РѕС‚С‹ СЃ EEPROM
-		unsigned char EEPROMread(unsigned char num); // Р§РёС‚Р°РµС‚ Р±Р°Р№С‚
-		void EEPROMwrite(unsigned char num, unsigned char value); // Р—Р°РїРёСЃС‹РІР°РµС‚ Р±Р°Р№С‚
+		// Функции работы с EEPROM
+		unsigned char EEPROMread(unsigned char num); // Читает байт
+		void EEPROMwrite(unsigned char num, unsigned char value); // Записывает байт
 		
-		bool GetPoint(unsigned char point_num); // РџРѕР»СѓС‡РµРЅРёРµ Р·РЅР°С‡РµРЅРёСЏ С‚РѕС‡РєРё
-		unsigned char SetPoint(unsigned char point_num, bool value); // РџСЂРёСЃРѕРІРµРЅРёРµ Р·РЅР°С‡РµРЅРёСЏ С‚РѕС‡РєРµ
-		unsigned char GetData(unsigned char index); // РџРѕР»СѓС‡РµРЅРёРµ Р·РЅР°С‡РµРЅРёСЏ data РёР· РїРµСЂРµРјРµРЅРЅРѕР№
-		void SetData(unsigned char index, unsigned char value); // РџСЂРёСЃРІРѕРµРЅРёРµ Р·РЅР°С‡РµРЅРёСЏ data РІ РїРµСЂРµРјРµРЅРЅСѓСЋ
-		unsigned char GetBitOfByte(unsigned char byte, unsigned char bit_num); // РџРѕР»СѓС‡РµРЅРёРµ Р±РёС‚Р° РёР· Р±Р°Р№С‚Р°
-		unsigned char SetBitOfByte(unsigned char byte, unsigned char bit_num, unsigned char value); //РџСЂРёСЃРІРѕРµРЅРёРµ Р±РёС‚Р° Р±Р°Р№С‚Сѓ
+		bool GetPoint(unsigned char point_num); // Получение значения точки
+		unsigned char SetPoint(unsigned char point_num, bool value); // Присовение значения точке
+		unsigned char GetData(unsigned char index); // Получение значения data из переменной
+		void SetData(unsigned char index, unsigned char value); // Присвоение значения data в переменную
+		unsigned char GetBitOfByte(unsigned char byte, unsigned char bit_num); // Получение бита из байта
+		unsigned char SetBitOfByte(unsigned char byte, unsigned char bit_num, unsigned char value); //Присвоение бита байту
 
 		void transmit(unsigned char len);		
-		unsigned char buff[buff_size]; // Р±СѓС„РµСЂ РІС…РѕРґСЏС‰РёС…/РёСЃС…РѕРґСЏС‰РёС… РґР°РЅРЅС‹С…	
+		unsigned char buff[buff_size]; // буфер входящих/исходящих данных	
   private:
 		
 		unsigned char temp_uch;
-		unsigned char uch_i; // РІСЂРµРјРµРЅРЅР°СЏ РїРµСЂРµРјРµРЅРЅР°СЏ С‚РёРїР° unsigned char
-		unsigned short ush_i;// РІСЂРµРјРµРЅРЅР°СЏ РїРµСЂРµРјРµРЅРЅР°СЏ С‚РёРїР° unsigned short
-		int ledWork_freq; //РІСЂРµРјСЏ РјРµР¶РґСѓ РїРµСЂРµРєР»СЋС‡РµРЅРёСЏРјРё СЃРІРµС‚РѕРґРёРѕРґР°: 1000 РІСЃРµ С…РѕСЂРѕС€Рѕ, РёРЅР°С‡Рµ РїР»РѕС…Рѕ
-		unsigned long last_ledWork; //РІСЂРµРјСЏ РїРѕСЃР»РµРґРЅРµРіРѕ РїРµСЂРµРєР»СЋС‡РµРЅРёСЏ СЃРІРµС‚РѕРґРёРѕРґР°
-		unsigned long timer_1s; //Р’СЂРµРјСЏ СЃСЂР°Р±Р°С‚С‹РІР°РЅРёСЏ РѕРґРЅРѕСЃРµРєСѓРЅРґРЅРѕРіРѕ С‚Р°Р№РјРµСЂР°
-		void clear_buff(); // Р¤СѓРЅРєС†РёСЏ С‡РёСЃС‚РёС‚ Р±СѓС„РµСЂ
+		unsigned char uch_i; // временная переменная типа unsigned char
+		unsigned short ush_i;// временная переменная типа unsigned short
+		int ledWork_freq; //время между переключениями светодиода: 1000 все хорошо, иначе плохо
+		unsigned long last_ledWork; //время последнего переключения светодиода
+		unsigned long timer_1s; //Время срабатывания односекундного таймера
+		void clear_buff(); // Функция чистит буфер
 
-		void serialEvent(); //РїСЂРѕРІРµСЂСЏРµРј РЅР°Р»РёС‡РёРµ РЅРѕРІС‹С… РґР°РЅРЅС‹С… РІ РёРЅС‚РµСЂС„РµР№СЃРµ С€РёРЅС‹
-		void func_ADNet(); // Р¤СѓРЅРєС†РёСЏ РѕР±СЂР°Р±РѕС‚РєР° СЃРѕРѕР±С‰РµРЅРёР№ RS-485, РїРѕР»СѓС‡РµРЅРЅС‹С… РїРѕ РїСЂРѕС‚РѕРєРѕР»Сѓ ADNet
-		void func_ModBus(); // Р¤СѓРЅРєС†РёСЏ РѕР±СЂР°Р±РѕС‚РєР° СЃРѕРѕР±С‰РµРЅРёР№ RS-485, РїРѕР»СѓС‡РµРЅРЅС‹С… РїРѕ РїСЂРѕС‚РѕРєРѕР»Сѓ ModBus
-		unsigned char GetAddr(); // Р’РѕР·РІСЂР°С‰Р°РµС‚ Р°РґСЂРµСЃ РјРѕРґСѓР»СЏ РїРѕ РІС‹СЃС‚Р°РІР»РµРЅРЅС‹Рј Pin
-		// Р¤СѓРЅРєС†РёРё СЂР°Р±РѕС‚С‹ СЃ EEPROM		
-		void EEPROMfix(); //РџСЂРѕРІРµСЂСЏРµС‚ РЅР° РёСЃРїРѕСЂС‡РµРЅРЅРѕСЃС‚СЊ Рё РІРѕСЃСЃС‚Р°РЅР°РІР»РёРІР°РµС‚
-		// Р Р°Р±РѕС‚Р° СЃ РїРѕР»РµРј data
-		unsigned char data[2];  // Р·РЅР°С‡РµРЅРёРµ		
-		//Р’С‹С‡РёСЃР»РµРЅРёРµ CRC РґР»СЏ ADNet Рё ModBus
+		void serialEvent(); //проверяем наличие новых данных в интерфейсе шины
+		void func_ADNet(); // Функция обработка сообщений RS-485, полученных по протоколу ADNet
+		void func_ModBus(); // Функция обработка сообщений RS-485, полученных по протоколу ModBus
+		unsigned char GetAddr(); // Возвращает адрес модуля по выставленным Pin
+		// Функции работы с EEPROM		
+		void EEPROMfix(); //Проверяет на испорченность и восстанавливает
+		// Работа с полем data
+		unsigned char data[2];  // значение		
+		//Вычисление CRC для ADNet и ModBus
 		void init_crc16_tab();
 		unsigned short update_crc_16( unsigned short crc, char c );
 		unsigned short calc_mb_crc(unsigned char *buf, unsigned char count);
-		unsigned char  calc_ad_crc(unsigned char *buff_in); // Р’С‹С‡РёСЃР»РµРЅРёРµ crc РґР»СЏ ADNet
+		unsigned char  calc_ad_crc(unsigned char *buff_in); // Вычисление crc для ADNet
 		
 };
  
